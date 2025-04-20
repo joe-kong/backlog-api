@@ -1,0 +1,77 @@
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 70vh;
+  padding: 2rem 1rem;
+}
+
+.login-container {
+  max-width: 600px;
+  width: 100%;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 2.5rem;
+  text-align: center;
+}
+
+.login-page h1 {
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+}
+
+.description {
+  color: #7f8c8d;
+  line-height: 1.5;
+  margin-bottom: 2rem;
+}
+
+.login-button {
+  display: inline-block;
+  background-color: #3498db;
+  color: white;
+  padding: 0.8rem 2rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  text-decoration: none;
+  margin: 1.5rem 0;
+  transition: background-color 0.2s;
+}
+
+.login-button:hover {
+  background-color: #2980b9;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+}
+
+.loading-spinner {
+  margin: 2rem 0;
+  color: #3498db;
+  font-weight: bold;
+}
+
+.info-box {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.info-box h3 {
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.info-box p {
+  color: #7f8c8d;
+  line-height: 1.5;
+  font-size: 0.9rem;
+} 

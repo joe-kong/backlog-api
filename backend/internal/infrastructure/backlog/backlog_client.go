@@ -1,0 +1,149 @@
+package backlog
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+
+	"nulab-exam.backlog.jp/KOU/app/backend/internal/domain/model"
+)
+
+// BacklogClient はBacklog APIクライアント
+type BacklogClient struct {
+	spaceURL     string
+	clientID     string
+	clientSecret string
+	httpClient   *http.Client
+}
+
+// NewBacklogClient はBacklogClientのインスタンスを生成
+func NewBacklogClient(spaceURL, clientID, clientSecret string) *BacklogClient {
+	return &BacklogClient{
+		spaceURL:     spaceURL,
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+	}
+}
+
+// GetActivities はBacklogのアクティビティ（更新情報）を取得
+func (c *BacklogClient) GetActivities(token string, count int) ([]*model.BacklogItem, error) {
+	apiURL := fmt.Sprintf("%s/api/v2/space/activities", c.spaceURL)
+
+	// クエリパラメータの設定
+	params := url.Values{}
+	params.Add("count", fmt.Sprintf("%d", count))
+
+	// リクエスト作成
+	req, err := http.NewRequest("GET", apiURL+"?"+params.Encode(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// 認証ヘッダーの設定
+	req.Header.Add("Authorization", "Bearer "+token)
+
+	// リクエスト実行
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// レスポンスのステータスコードチェック
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to get activities, status: %d, response: %s", resp.StatusCode, string(body))
+	}
+
+	// レスポンスボディの読み込み
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// JSONデコード
+	var activities []struct {
+		ID      int `json:"id"`
+		Project struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"project"`
+		Type    string `json:"type"`
+		Content struct {
+			Summary string `json:"summary"`
+		} `json:"content"`
+		CreatedUser struct {
+			ID          int    `json:"id"`
+			Name        string `json:"name"`
+			RoleType    int    `json:"roleType"`
+			Lang        string `json:"lang"`
+			MailAddress string `json:"mailAddress"`
+		} `json:"createdUser"`
+		Created string `json:"created"`
+	}
+
+	if err := json.Unmarshal(body, &activities); err != nil {
+		return nil, err
+	}
+
+	// ドメインモデルへの変換
+	items := make([]*model.BacklogItem, 0, len(activities))
+	for _, activity := range activities {
+		createdTime, _ := time.Parse(time.RFC3339, activity.Created)
+
+		item := &model.BacklogItem{
+			ID:             fmt.Sprintf("%d", activity.ID),
+			ProjectID:      fmt.Sprintf("%d", activity.Project.ID),
+			ProjectName:    activity.Project.Name,
+			Type:           activity.Type,
+			ContentSummary: activity.Content.Summary,
+			CreatedUser: model.User{
+				ID:          fmt.Sprintf("%d", activity.CreatedUser.ID),
+				Name:        activity.CreatedUser.Name,
+				RoleType:    activity.CreatedUser.RoleType,
+				Lang:        activity.CreatedUser.Lang,
+				MailAddress: activity.CreatedUser.MailAddress,
+			},
+			Created: createdTime,
+		}
+
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
+// SearchActivities はキーワードでアクティビティを検索
+func (c *BacklogClient) SearchActivities(token, keyword string, count int) ([]*model.BacklogItem, error) {
+	// 全てのアクティビティを取得
+	activities, err := c.GetActivities(token, count)
+	if err != nil {
+		return nil, err
+	}
+
+	// キーワードが空の場合は全て返す
+	if keyword == "" {
+		return activities, nil
+	}
+
+	// キーワードでフィルタリング
+	var filtered []*model.BacklogItem
+	for _, activity := range activities {
+		if strings.Contains(activity.ID, keyword) ||
+			strings.Contains(activity.ProjectName, keyword) ||
+			strings.Contains(activity.Type, keyword) ||
+			strings.Contains(activity.ContentSummary, keyword) ||
+			strings.Contains(activity.CreatedUser.Name, keyword) {
+			filtered = append(filtered, activity)
+		}
+	}
+
+	return filtered, nil
+}

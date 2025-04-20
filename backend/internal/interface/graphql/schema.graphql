@@ -1,0 +1,68 @@
+type Query {
+  # 更新情報を検索する
+  searchItems(keyword: String): [BacklogItem!]!
+  
+  # お気に入りの更新情報を取得する
+  favorites: [BacklogItem!]!
+  
+  # 認証状態を取得する
+  authStatus: AuthStatus!
+  
+  # 認可URLを取得する
+  authorizationURL: String!
+}
+
+type Mutation {
+  # お気に入りを追加する
+  addFavorite(itemId: ID!): Boolean!
+  
+  # お気に入りを削除する
+  removeFavorite(itemId: ID!): Boolean!
+  
+  # OAuthコールバック処理
+  authorizeCallback(code: String!): AuthResult!
+  
+  # ログアウト処理
+  logout: Boolean!
+}
+
+# Backlogの更新情報
+type BacklogItem {
+  id: ID!
+  projectId: String!
+  projectName: String!
+  type: String!
+  contentSummary: String!
+  createdUser: User!
+  created: String!
+  isFavorite: Boolean!
+}
+
+# Backlogのユーザー情報
+type User {
+  id: ID!
+  name: String!
+  roleType: Int!
+  lang: String
+  mailAddress: String
+}
+
+# 認証状態
+type AuthStatus {
+  isAuthenticated: Boolean!
+  user: User
+}
+
+# 認証結果
+type AuthResult {
+  success: Boolean!
+  token: AuthToken
+  user: User
+}
+
+# 認証トークン
+type AuthToken {
+  accessToken: String!
+  tokenType: String!
+  expiresAt: String!
+} 
