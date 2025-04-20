@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import './CallbackPage.css';
 
 const CallbackPage: React.FC = () => {
-  const { login, isAuthenticated, loading: authLoading, error: authError } = useAuth();
+  const { isAuthenticated, loading: authLoading, error: authError } = useAuth();
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -17,23 +17,40 @@ const CallbackPage: React.FC = () => {
       return;
     }
 
-    const processOAuthCallback = async () => {
+    const processCallback = async () => {
       try {
         const params = new URLSearchParams(location.search);
-        const code = params.get('code');
+        const tokenBase64 = params.get('token');
+        const userBase64 = params.get('user');
         const errorParam = params.get('error');
 
         if (errorParam) {
           throw new Error(`Authorization error: ${errorParam}`);
         }
 
-        if (!code) {
-          throw new Error('Authorization code is missing');
+        if (!tokenBase64 || !userBase64) {
+          throw new Error('Token or user data is missing');
         }
 
-        // 認可コードを使ってログイン処理を実行
-        await login(code);
-        navigate('/');
+        // Base64デコード
+        const tokenJSON = atob(tokenBase64.replace(/-/g, '+').replace(/_/g, '/'));
+        const userJSON = atob(userBase64.replace(/-/g, '+').replace(/_/g, '/'));
+        
+        // JSONをオブジェクトに変換
+        const token = JSON.parse(tokenJSON);
+        const user = JSON.parse(userJSON);
+        
+        // ローカルストレージに保存
+        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('accessToken', token.accessToken);
+        localStorage.setItem('tokenType', token.tokenType);
+        localStorage.setItem('expiresAt', token.expiresAt);
+        
+        // 短い遅延を追加して、状態が更新される時間を確保
+        setTimeout(() => {
+          // ホームページにリダイレクト
+          navigate('/');
+        }, 500);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Authentication failed');
       } finally {
@@ -41,8 +58,8 @@ const CallbackPage: React.FC = () => {
       }
     };
 
-    processOAuthCallback();
-  }, [location, login, navigate, isAuthenticated, authLoading]);
+    processCallback();
+  }, [location, navigate, isAuthenticated, authLoading]);
 
   return (
     <div className="callback-page">

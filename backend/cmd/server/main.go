@@ -1,12 +1,15 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"nulab-exam.backlog.jp/KOU/app/backend/internal/domain/model"
 	"nulab-exam.backlog.jp/KOU/app/backend/internal/infrastructure/auth"
 	"nulab-exam.backlog.jp/KOU/app/backend/internal/infrastructure/backlog"
@@ -15,12 +18,19 @@ import (
 )
 
 func main() {
+	// .env ファイルの読み込み
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Warning: .env file not found or cannot be loaded: %v", err)
+	}
+
 	// 環境変数から設定を読み込む（またはデフォルト値を使用）
-	spaceURL := getEnv("BACKLOG_SPACE_URL", "https://nulab-exam.backlog.jp/projects/KOU ")
+	spaceURL := getEnv("BACKLOG_SPACE_URL", "https://nulab-exam.backlog.jp")
 	clientID := getEnv("BACKLOG_CLIENT_ID", "QgcVk8WlUb4aJZ8GbNrja1ATXXDFA60y")
 	clientSecret := getEnv("BACKLOG_CLIENT_SECRET", "6TmFwzdeYE0TKi8mmXmWJ3d14NmL1SqwTgIbu4Ud1ZFwo8x3raCCGIHhzEmPqk7c")
-	redirectURI := getEnv("OAUTH_REDIRECT_URI", "http://localhost:8080/api/auth/callback")
-	port := getEnv("PORT", "8080")
+	redirectURI := getEnv("OAUTH_REDIRECT_URI", "http://localhost:8081/api/auth/callback")
+	authURL := getEnv("BACKLOG_AUTH_URL", "https://nulab-exam.backlog.jp/OAuth2AccessRequest.action")
+	tokenURL := getEnv("BACKLOG_TOKEN_URL", "https://nulab-exam.backlog.jp/api/v2/oauth2/token")
+	port := getEnv("PORT", "8081")
 
 	// リポジトリの初期化
 	authRepo := memory.NewAuthRepository()
@@ -31,8 +41,8 @@ func main() {
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		RedirectURI:  redirectURI,
-		AuthURL:      spaceURL + "/OAuth2/authorize",
-		TokenURL:     spaceURL + "/OAuth2/token",
+		AuthURL:      authURL,
+		TokenURL:     tokenURL,
 		Scopes:       []string{"read"},
 	}
 
@@ -78,16 +88,24 @@ func main() {
 			return
 		}
 
+		// ユーザー認証とトークン取得（バックエンドの処理）
 		token, user, err := authUseCase.AuthorizeCallback(code)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"token": token,
-			"user":  user,
-		})
+		// トークンとユーザー情報をURLエンコードしてフロントエンドに渡す
+		tokenJSON, _ := json.Marshal(token)
+		userJSON, _ := json.Marshal(user)
+
+		// URLセーフなBase64エンコード
+		tokenBase64 := base64.URLEncoding.EncodeToString(tokenJSON)
+		userBase64 := base64.URLEncoding.EncodeToString(userJSON)
+
+		// フロントエンドのコールバックページにリダイレクト
+		redirectURL := fmt.Sprintf("http://localhost:3000/auth/callback?token=%s&user=%s", tokenBase64, userBase64)
+		c.Redirect(http.StatusFound, redirectURL)
 	})
 
 	r.GET("/api/auth/logout/:userId", func(c *gin.Context) {

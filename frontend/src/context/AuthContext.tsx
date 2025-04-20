@@ -76,7 +76,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError(null);
 
     try {
-      const response = await fetch(`http://localhost:8080/api/auth/callback?code=${code}`);
+      const response = await fetch(`http://localhost:8081/api/auth/callback?code=${code}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -115,7 +115,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // サーバーサイドのログアウト処理（オプション）
     if (user) {
-      fetch(`http://localhost:8080/api/auth/logout/${user.id}`, { method: 'GET' }).catch(console.error);
+      fetch(`http://localhost:8081/api/auth/logout/${user.id}`, { method: 'GET' }).catch(console.error);
     }
   };
 

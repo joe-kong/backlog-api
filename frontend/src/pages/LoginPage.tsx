@@ -24,7 +24,7 @@ const LoginPage: React.FC = () => {
       setError(null);
 
       try {
-        const response = await fetch('http://localhost:8080/api/auth/url');
+        const response = await fetch('http://localhost:8081/api/auth/url');
         const data = await response.json();
 
         if (!response.ok) {

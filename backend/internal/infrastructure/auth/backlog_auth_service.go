@@ -112,7 +112,7 @@ func (s *BacklogAuthService) GetBacklogUser(accessToken string) (*model.User, er
 	}
 
 	var userResp struct {
-		ID          string `json:"id"`
+		ID          int    `json:"id"`
 		Name        string `json:"name"`
 		RoleType    int    `json:"roleType"`
 		Lang        string `json:"lang"`
@@ -125,7 +125,7 @@ func (s *BacklogAuthService) GetBacklogUser(accessToken string) (*model.User, er
 
 	// ドメインモデルに変換
 	return &model.User{
-		ID:          userResp.ID,
+		ID:          fmt.Sprintf("%d", userResp.ID),
 		Name:        userResp.Name,
 		RoleType:    userResp.RoleType,
 		Lang:        userResp.Lang,
