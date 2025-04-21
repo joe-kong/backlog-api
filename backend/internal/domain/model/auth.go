@@ -36,4 +36,6 @@ type AuthRepository interface {
 	SaveToken(token *AuthToken) error
 	GetTokenByUserID(userID string) (*AuthToken, error)
 	DeleteToken(userID string) error
+	GetToken(userID string) (*AuthToken, error)
+	GetAllTokens() ([]*AuthToken, error)
 }

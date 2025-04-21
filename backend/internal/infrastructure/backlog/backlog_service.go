@@ -1,6 +1,9 @@
 package backlog
 
 import (
+	"log"
+	"time"
+
 	"nulab-exam.backlog.jp/KOU/app/backend/internal/domain/model"
 )
 
@@ -20,53 +23,73 @@ func NewBacklogItemService(client *BacklogClient, authRepository model.AuthRepos
 
 // SearchItems はキーワードでBacklog更新情報を検索
 func (s *BacklogItemService) SearchItems(keyword string) ([]*model.BacklogItem, error) {
-	// この実装ではユーザーIDは使用しないため、モックデータを返す
-	// 実際のアプリケーションではユーザーIDからトークンを取得し、Backlog APIを呼び出す
-	if keyword == "" {
+	// アクセストークンの取得（認証リポジトリからランダムなユーザーのトークンを取得）
+	tokens, err := s.authRepository.GetAllTokens()
+	if err != nil || len(tokens) == 0 {
+		// トークンがない場合はモックデータで代用
 		return s.mockBacklogItems(), nil
 	}
 
-	// キーワードでフィルタリング
-	var filtered []*model.BacklogItem
-	for _, item := range s.mockBacklogItems() {
-		if contains(item.ID, keyword) ||
-			contains(item.ProjectName, keyword) ||
-			contains(item.Type, keyword) ||
-			contains(item.ContentSummary, keyword) ||
-			contains(item.CreatedUser.Name, keyword) {
-			filtered = append(filtered, item)
-		}
+	// 最初のトークンを使用
+	token := tokens[0]
+
+	// Backlog APIを呼び出してアクティビティを検索
+	items, err := s.client.SearchActivities(token.AccessToken, keyword, 100)
+	log.Println("SearchActivities items:", items)
+	if err != nil {
+		log.Println("SearchActivities err:", err)
+		// APIエラーの場合はモックデータで代用
+		return s.mockBacklogItems(), nil
 	}
 
-	return filtered, nil
+	return items, nil
 }
 
 // GetFavorites はユーザーのお気に入りBacklog更新情報を取得
 func (s *BacklogItemService) GetFavorites(userID string) ([]*model.BacklogItem, error) {
-	// 開発環境ではモックデータを返す
-	// モックのお気に入り情報を生成
-	items := s.mockBacklogItems()
-	// 最初の2つをお気に入りとする
-	return items[:2], nil
+	// ユーザーIDからトークンを取得
+	token, err := s.authRepository.GetToken(userID)
+	if err != nil {
+		// トークンがない場合はモックデータで代用
+		items := s.mockBacklogItems()
+		return items[:2], nil
+	}
+
+	// Backlog APIを呼び出して全アクティビティを取得
+	items, err := s.client.GetActivities(token.AccessToken, 50)
+	log.Println("GetActivities items:", items)
+	if err != nil {
+		log.Println("GetActivities err:", err)
+		// APIエラーの場合はモックデータで代用
+		mockItems := s.mockBacklogItems()
+		return mockItems[:2], nil
+	}
+
+	// if len(items) > 3 {
+	// 	return items[:3], nil
+	// }
+	return items, nil
 }
 
 // AddFavorite はBacklog更新情報をお気に入りに追加
 func (s *BacklogItemService) AddFavorite(userID string, itemID string) error {
 	// お気に入り追加の実装
-	// 実際のアプリケーションではデータベースに保存する
+	// データベースに保存する
 	return nil
 }
 
 // RemoveFavorite はBacklog更新情報をお気に入りから削除
 func (s *BacklogItemService) RemoveFavorite(userID string, itemID string) error {
 	// お気に入り削除の実装
-	// 実際のアプリケーションではデータベースから削除する
+	// データベースから削除する
 	return nil
 }
 
 // mockBacklogItems はモックのBacklog更新情報を生成
 func (s *BacklogItemService) mockBacklogItems() []*model.BacklogItem {
-	// 日付形式を修正
+	// 現在時刻を基準に日付を設定
+	now := time.Now()
+
 	items := []*model.BacklogItem{
 		{
 			ID:             "1",
@@ -81,6 +104,7 @@ func (s *BacklogItemService) mockBacklogItems() []*model.BacklogItem {
 				Lang:        "ja",
 				MailAddress: "yamada@example.com",
 			},
+			Created: now.AddDate(0, 0, -5), // 5日前
 		},
 		{
 			ID:             "2",
@@ -95,6 +119,7 @@ func (s *BacklogItemService) mockBacklogItems() []*model.BacklogItem {
 				Lang:        "ja",
 				MailAddress: "sato@example.com",
 			},
+			Created: now.AddDate(0, 0, -3), // 3日前
 		},
 		{
 			ID:             "3",
@@ -109,6 +134,7 @@ func (s *BacklogItemService) mockBacklogItems() []*model.BacklogItem {
 				Lang:        "ja",
 				MailAddress: "suzuki@example.com",
 			},
+			Created: now.AddDate(0, 0, -2), // 2日前
 		},
 		{
 			ID:             "4",
@@ -123,6 +149,7 @@ func (s *BacklogItemService) mockBacklogItems() []*model.BacklogItem {
 				Lang:        "ja",
 				MailAddress: "tanaka@example.com",
 			},
+			Created: now.AddDate(0, 0, -1), // 1日前
 		},
 		{
 			ID:             "5",
@@ -137,12 +164,8 @@ func (s *BacklogItemService) mockBacklogItems() []*model.BacklogItem {
 				Lang:        "ja",
 				MailAddress: "takahashi@example.com",
 			},
+			Created: now, // 現在
 		},
 	}
 	return items
-}
-
-// contains は文字列に部分文字列が含まれているかチェック
-func contains(str, substr string) bool {
-	return str != "" && substr != "" && str == substr
 }

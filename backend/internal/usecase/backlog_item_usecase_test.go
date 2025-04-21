@@ -91,6 +91,11 @@ func (m *MockAuthUseCase) GetValidToken(userID string) (*model.AuthToken, error)
 	}, nil
 }
 
+// TestAuthUseCase は認証ユースケースのテスト用インターフェース
+type TestAuthUseCase interface {
+	GetValidToken(userID string) (*model.AuthToken, error)
+}
+
 func TestBacklogItemUseCase_SearchItems(t *testing.T) {
 	// テスト用のリポジトリとサービスを初期化
 	mockBacklogService := NewMockBacklogItemService()

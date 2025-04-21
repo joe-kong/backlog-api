@@ -97,15 +97,40 @@ func (u *BacklogItemUseCase) GetFavorites(userID string) ([]*BacklogItemOutput, 
 		return nil, err
 	}
 
-	// お気に入り情報を取得
-	backlogItems, err := u.backlogItemService.GetFavorites(userID)
+	// ユーザーのお気に入りIDリストを取得
+	favorites, err := u.favoriteRepository.FindByUserID(userID)
 	if err != nil {
 		return nil, err
 	}
 
+	// お気に入りが0件の場合は空配列を返す
+	if len(favorites) == 0 {
+		return []*BacklogItemOutput{}, nil
+	}
+
+	// お気に入りアイテムのIDを収集
+	favoriteIDs := make(map[string]bool)
+	for _, fav := range favorites {
+		favoriteIDs[fav.ItemID] = true
+	}
+
+	// すべてのアイテムを取得
+	allItems, err := u.backlogItemService.SearchItems("")
+	if err != nil {
+		return nil, err
+	}
+
+	// お気に入りに登録されているアイテムだけをフィルタリング
+	var favoriteItems []*model.BacklogItem
+	for _, item := range allItems {
+		if favoriteIDs[item.ID] {
+			favoriteItems = append(favoriteItems, item)
+		}
+	}
+
 	// 出力データを作成
-	outputs := make([]*BacklogItemOutput, len(backlogItems))
-	for i, item := range backlogItems {
+	outputs := make([]*BacklogItemOutput, len(favoriteItems))
+	for i, item := range favoriteItems {
 		output := &BacklogItemOutput{
 			ID:             item.ID,
 			ProjectID:      item.ProjectID,

@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backlog-backend
+    ports:
+      - "8081:8081"
+    environment:
+      - BACKLOG_SPACE_URL=${BACKLOG_SPACE_URL}
+      - BACKLOG_CLIENT_ID=${BACKLOG_CLIENT_ID}
+      - BACKLOG_CLIENT_SECRET=${BACKLOG_CLIENT_SECRET}
+      - BACKLOG_AUTH_URL=${BACKLOG_AUTH_URL}
+      - BACKLOG_TOKEN_URL=${BACKLOG_TOKEN_URL}
+      - OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI}
+      - PORT=8081
+    restart: unless-stopped
+    volumes:
+      - ./backend/.env:/app/.env
+      - frontend-build:/app/frontend/build
+    networks:
+      - backlog-network
+    depends_on:
+      - frontend
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: backlog-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8081
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - backlog-network
+    restart: unless-stopped
+    command: npm start
+
+volumes:
+  frontend-build:
+
+networks:
+  backlog-network:
+    driver: bridge 

@@ -1,6 +1,79 @@
-# Backlog 更新情報検索アプリケーション
+# Backlog情報検索アプリケーション
 
-このアプリケーションは、Backlog APIを利用して更新情報を検索し、お気に入り登録できるWebアプリケーションです。
+### アプリケーションの実行
+
+1. リポジトリをクローン
+2. プロジェクトディレクトリに移動
+3. 以下のコマンドでアプリケーションを起動：
+
+ローカル開発の場合：
+
+　①バックエンドの起動：
+
+```bash
+cd backend
+go mod download
+make run または　go run cmd/server/main.go
+```
+
+　②フロントエンドの起動：
+```bash
+cd frontend
+npm install
+npm start
+```
+Dockerを開始するコマンド：
+```bash
+docker-compose up --build
+```
+4. http://localhost:3000 でアプリケーションにアクセス
+
+### 環境変数
+
+アプリケーションは設定のために以下の環境変数を使用します：
+
+- `BACKLOG_SPACE_URL`: BacklogスペースのURL
+- `BACKLOG_CLIENT_ID`: BacklogのOAuthクライアントID
+- `BACKLOG_CLIENT_SECRET`: BacklogのOAuthクライアントシークレット
+- `BACKLOG_AUTH_URL`: Backlog認証URL
+- `BACKLOG_TOKEN_URL`: BacklogトークンURL
+- `OAUTH_REDIRECT_URI`: OAuthリダイレクトURI（デフォルト: http://localhost:8081/api/auth/callback）
+- `PORT`: バックエンドサーバーのポート（デフォルト: 8081）
+- `OPENAI_API_KEY`: OpenAI APIキー（AI分析機能に必要）
+
+これらの変数は `backend/.env` ファイルで設定できます。
+
+### OpenAI API設定
+
+バックログアイテムのAI分析機能を使用するには、以下の手順でOpenAI APIキーを設定してください：
+1. [OpenAIのウェブサイト](https://platform.openai.com/)でアカウントを作成し、APIキーを取得
+2. `.env`ファイルの`OPENAI_API_KEY`変数にAPIキーを設定：
+   ```
+   OPENAI_API_KEY=your_openai_api_key_here
+   ```
+3. バックエンドサーバーを再起動
+
+注意: OpenAI APIキーが設定されていない場合、AI分析機能はモックデータを使用します。
+
+docker-composeでDockerを停止するコマンド
+```bash
+# コンテナを停止するだけ（コンテナは残ります）
+docker-compose stop
+
+# コンテナを停止して削除する（次回起動を早くしたい場合はこちら）
+docker-compose down
+
+# 全てのリソース（ボリュームを含む）を削除する場合
+docker-compose down --volumes
+```
+
+
+## アーキテクチャ
+
+- フロントエンドはReactで構築されます
+- バックエンドはGoで構築され、Ginフレームワークを使用しています
+- 認証はBacklogのOAuthを使用して処理されます
+- コンテナ化とデプロイにはDockerを使用しています
 
 ## 技術スタック
 
@@ -10,9 +83,14 @@
 - クリーンアーキテクチャ
 - OAuth 2.0認証
 
-このプロジェクトでは、小規模なアプリケーションであるため、コントローラのロジックを直接main.goに記述し、
+バックエンドのコントローラのロジックを直接main.goに記述し、
 リポジトリの実装はmemoryパッケージに直接実装することで、シンプルに保っているようです。
-将来的にアプリケーションが成長した場合は、これらの空のディレクトリを活用して、適切に分離された構造に移行する。
+将来的にデータ永続化のため、DBの実装および機能追加により、これらの空のディレクトリを活用して、
+適切に分離された構造に移行する。
+
+### インフラ
+- Docker
+- Docker Compose
 
 ### フロントエンド
 - React
@@ -44,49 +122,10 @@
         └── types/         # 型定義
 ```
 
-## 開発における簡略化ポイント
-
-- ユニットテスト: 一部のコアロジックのみに限定
-- エラーハンドリング: 基本的なものに限定
-- UIデザイン: 最小限の実装に限定
-- ドキュメンテーション: 主要なコンポーネントとAPIのみ
-
-## セットアップ
-
-### 前提条件
-- Go 1.20以上
-- Node.js 16以上
-- npm 7以上
-
-### バックエンド開発
-
-```bash
-cd backend
-go mod download
-go run cmd/server/main.go
-```
-
-### BEのプロセスを終了して再起動する場合
-```bash
-pkill -f "go run cmd/server/main.go"
-```
-
-### フロントエンド開発
-
-```bash
-cd frontend
-npm install
-npm start
-```
-
-### FEのプロセスを終了するコマンド
-```bash
-pkill -f "react-scripts start" || true
-```
 
 ## OAuth 2.0認証フロー
 
-このアプリケーションはOAuth 2.0の認可コードフローを使用してBacklog APIにアクセスします。
+OAuth 2.0の認可コードフローを使用してBacklog APIにアクセスしています。
 
 1. アプリケーションがBacklogの認可エンドポイントにユーザーをリダイレクト
 2. ユーザーがBacklogでアプリケーションのアクセスを許可
@@ -98,5 +137,7 @@ pkill -f "react-scripts start" || true
 
 - Backlog更新情報の検索
 - キーワードによるフィルタリング
-- お気に入り登録機能
-- OAuth 2.0によるBacklog認証 
+- お気に入り登録と解除機能　
+　✳インメモ保存なので、BEサーバーを再起動するとお気に入り登録項目が失われます。
+- OAuth 2.0によるBacklog認証
+- OpenAI APIを使用したアイテムのAI分析機能 

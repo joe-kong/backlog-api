@@ -10,7 +10,7 @@ const Header: React.FC = () => {
     <header className="header">
       <div className="header-content">
         <div className="logo">
-          <Link to="/">Backlog 更新情報アプリ</Link>
+          <Link to="/">Backlog 更新情報検索アプリ</Link>
         </div>
         <nav className="navigation">
           {isAuthenticated ? (

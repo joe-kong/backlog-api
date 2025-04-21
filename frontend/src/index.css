@@ -5,7 +5,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f8f9fa;
+  background-color: #f7f9fa;
   color: #333;
   line-height: 1.6;
 }
@@ -20,12 +20,13 @@ code {
 }
 
 a {
-  color: #3498db;
+  color: #5aac29;
   text-decoration: none;
 }
 
 a:hover {
   text-decoration: underline;
+  color: #478522;
 }
 
 button {
