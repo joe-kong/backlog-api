@@ -12,38 +12,69 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"nulab-exam.backlog.jp/KOU/app/backend/internal/domain/model"
 	"nulab-exam.backlog.jp/KOU/app/backend/internal/infrastructure/auth"
 	"nulab-exam.backlog.jp/KOU/app/backend/internal/infrastructure/backlog"
+	dynamodb_repo "nulab-exam.backlog.jp/KOU/app/backend/internal/infrastructure/persistence/dynamodb"
 	"nulab-exam.backlog.jp/KOU/app/backend/internal/infrastructure/persistence/memory"
 	"nulab-exam.backlog.jp/KOU/app/backend/internal/usecase"
 )
 
 func main() {
+
 	// .env ファイルの読み込み
 	if err := godotenv.Load(); err != nil {
-		log.Printf("Warning: .env file not found or cannot be loaded: %v", err)
+		log.Printf("Warning: 環境変数ファイルが見つかっていませんでした: %v", err)
 	}
 
-	// 環境変数から設定を読み込む（またはデフォルト値を使用）
-	spaceURL := getEnv("BACKLOG_SPACE_URL", "https://nulab-exam.backlog.jp")
-	clientID := getEnv("BACKLOG_CLIENT_ID", "XXXXXX")
-	clientSecret := getEnv("BACKLOG_CLIENT_SECRET", "YYYYYY")
-	redirectURI := getEnv("OAUTH_REDIRECT_URI", "http://localhost:8081/api/auth/callback")
-	authURL := getEnv("BACKLOG_AUTH_URL", "https://nulab-exam.backlog.jp/OAuth2AccessRequest.action")
-	tokenURL := getEnv("BACKLOG_TOKEN_URL", "https://nulab-exam.backlog.jp/api/v2/oauth2/token")
+	spaceURL := getEnv("BACKLOG_SPACE_URL", "")
+	clientID := getEnv("BACKLOG_CLIENT_ID", "")
+	clientSecret := getEnv("BACKLOG_CLIENT_SECRET", "")
+	redirectURI := getEnv("OAUTH_REDIRECT_URI", "")
+	authURL := getEnv("BACKLOG_AUTH_URL", "")
+	tokenURL := getEnv("BACKLOG_TOKEN_URL", "")
 	port := getEnv("PORT", "8081")
+	frontendURL := getEnv("FRONTEND_URL", "http://localhost:3000")
+
+	// DynamoDB設定
+	useDynamoDB := getEnv("USE_DYNAMODB", "false") == "true"
+	dynamoDBRegion := getEnv("DYNAMODB_REGION", "ap-northeast-1")
 
 	// OpenAI APIキーの取得
 	openaiAPIKey := getEnv("OPENAI_API_KEY", "")
 	if openaiAPIKey == "" {
-		log.Println("Warning: OPENAI_API_KEY is not set. AI analysis will use mock data.")
+		log.Println("Warning: OPENAI_API_KEY が見つかっていません、ダミーデータをレスオンするようになります。")
 	}
 
 	authRepo := memory.NewAuthRepository()
-	favoriteRepo := memory.NewFavoriteRepository()
+	var favoriteRepo model.FavoriteRepository
+
+	// リポジトリの初期化（DynamoDBとメモリから選択）
+	if useDynamoDB {
+		log.Println("Using DynamoDB for favorite repository")
+
+		var dynamoClient *dynamodb.Client
+		var err error
+
+		dynamoClient, err = dynamodb_repo.NewDynamoDBClient(dynamoDBRegion)
+
+		if err != nil {
+			log.Fatalf("Failed to create DynamoDB client: %v", err)
+		}
+
+		// DynamoDBテーブルの作成
+		if err := dynamodb_repo.CreateFavoriteTable(dynamoClient); err != nil {
+			log.Fatalf("Failed to create DynamoDB table: %v", err)
+		}
+
+		favoriteRepo = dynamodb_repo.NewFavoriteRepository(dynamoClient)
+	} else {
+		log.Println("Using in-memory favorite repository")
+		favoriteRepo = memory.NewFavoriteRepository()
+	}
 
 	// OAuth設定
 	oauthConfig := model.OAuthConfig{
@@ -88,6 +119,15 @@ func main() {
 		})
 	})
 
+	// ヘルスチェックエンドポイント（AWS ALB用）
+	r.GET("/api/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status": "ok",
+			"env":    getEnv("APP_ENV", "development"),
+			"time":   time.Now().Format(time.RFC3339),
+		})
+	})
+
 	r.GET("/api/auth/callback", func(c *gin.Context) {
 		code := c.Query("code")
 		if code == "" {
@@ -111,7 +151,7 @@ func main() {
 		userBase64 := base64.URLEncoding.EncodeToString(userJSON)
 
 		// フロントエンドのコールバックページにリダイレクト
-		redirectURL := fmt.Sprintf("http://localhost:3000/auth/callback?token=%s&user=%s", tokenBase64, userBase64)
+		redirectURL := fmt.Sprintf("%s/auth/callback?token=%s&user=%s", frontendURL, tokenBase64, userBase64)
 		c.Redirect(http.StatusFound, redirectURL)
 	})
 
@@ -366,7 +406,6 @@ func handleAIAnalyze(c *gin.Context) {
 	}
 
 	// AIの応答を解析して構造化（簡易的な実装）
-	// 実際の実装ではより堅牢なパース処理が必要かもしれません
 	lines := splitTextIntoSections(content)
 
 	summary := "この項目の要約情報が生成されました。"

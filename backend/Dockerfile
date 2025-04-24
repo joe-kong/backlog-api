@@ -17,28 +17,29 @@ RUN go mod download || go mod tidy
 COPY . .
 
 # アプリケーションのビルド
-RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o server ./cmd/server/main.go
 
 # 実行ステージ
 FROM alpine:latest
 
-# タイムゾーンの設定
-RUN apk --no-cache add tzdata && \
+# タイムゾーンとSSL証明書の設定
+RUN apk --no-cache add tzdata ca-certificates && \
     cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
-    echo "Asia/Tokyo" > /etc/timezone && \
-    apk del tzdata
+    echo "Asia/Tokyo" > /etc/timezone
 
 # 作業ディレクトリの作成
 WORKDIR /app
 
 # ビルドステージからバイナリをコピー
 COPY --from=builder /app/server .
+COPY --from=builder /app/.env* ./
 
-# .envファイルをコピー
-COPY .env .
+# 権限の設定
+RUN chmod +x ./server && \
+    adduser -D appuser && \
+    chown -R appuser:appuser /app
 
 # 実行ユーザーの設定
-RUN adduser -D appuser
 USER appuser
 
 # ポートの公開

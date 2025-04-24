@@ -33,9 +33,9 @@ func (s *BacklogItemService) SearchItems(keyword string) ([]*model.BacklogItem, 
 	// 最初のトークンを使用
 	token := tokens[0]
 
-	// Backlog APIを呼び出してアクティビティを検索
+	// 最新の100件のアクティビティを取得
 	items, err := s.client.SearchActivities(token.AccessToken, keyword, 100)
-	log.Println("SearchActivities items:", items)
+	log.Println("SearchActivities items:", len(items))
 	if err != nil {
 		log.Println("SearchActivities err:", err)
 		// APIエラーの場合はモックデータで代用

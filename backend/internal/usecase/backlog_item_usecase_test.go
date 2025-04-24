@@ -1,4 +1,4 @@
-package usecase_test
+package usecase
 
 import (
 	"testing"
@@ -6,7 +6,6 @@ import (
 
 	"nulab-exam.backlog.jp/KOU/app/backend/internal/domain/model"
 	"nulab-exam.backlog.jp/KOU/app/backend/internal/infrastructure/persistence/memory"
-	"nulab-exam.backlog.jp/KOU/app/backend/internal/usecase"
 )
 
 // MockBacklogItemService はBacklogItemServiceのモック実装
@@ -35,7 +34,7 @@ func NewMockBacklogItemService() *MockBacklogItemService {
 			{
 				ID:             "2",
 				ProjectID:      "1",
-				ProjectName:    "プロジェクトA",
+				ProjectName:    "プロジェクトB",
 				Type:           "課題",
 				ContentSummary: "検索機能の追加",
 				CreatedUser: model.User{
@@ -78,32 +77,103 @@ func (m *MockBacklogItemService) RemoveFavorite(userID string, itemID string) er
 	return nil
 }
 
-// MockAuthUseCase はAuthUseCaseのモック実装
-type MockAuthUseCase struct{}
+// MockAuthRepository はAuthRepositoryのモック実装
+type MockAuthRepository struct{}
 
-func (m *MockAuthUseCase) GetValidToken(userID string) (*model.AuthToken, error) {
+func (m *MockAuthRepository) SaveToken(token *model.AuthToken) error {
+	return nil
+}
+
+func (m *MockAuthRepository) GetTokenByUserID(userID string) (*model.AuthToken, error) {
 	return &model.AuthToken{
-		AccessToken:  "mock-token",
+		AccessToken:  "test-token",
 		TokenType:    "Bearer",
-		RefreshToken: "mock-refresh-token",
+		RefreshToken: "test-refresh-token",
 		ExpiresAt:    time.Now().Add(time.Hour),
 		UserID:       userID,
 	}, nil
 }
 
-// TestAuthUseCase は認証ユースケースのテスト用インターフェース
-type TestAuthUseCase interface {
-	GetValidToken(userID string) (*model.AuthToken, error)
+func (m *MockAuthRepository) DeleteToken(userID string) error {
+	return nil
 }
 
+func (m *MockAuthRepository) GetAllTokens() ([]*model.AuthToken, error) {
+	return []*model.AuthToken{
+		{
+			AccessToken:  "test-token-1",
+			TokenType:    "Bearer",
+			RefreshToken: "test-refresh-token-1",
+			ExpiresAt:    time.Now().Add(time.Hour),
+			UserID:       "user1",
+		},
+	}, nil
+}
+
+func (m *MockAuthRepository) GetToken(userID string) (*model.AuthToken, error) {
+	return &model.AuthToken{
+		AccessToken:  "test-token",
+		TokenType:    "Bearer",
+		RefreshToken: "test-refresh-token",
+		ExpiresAt:    time.Now().Add(time.Hour),
+		UserID:       userID,
+	}, nil
+}
+
+// MockAuthService はAuthServiceのモック実装
+type MockAuthService struct{}
+
+func (m *MockAuthService) GetAuthorizationURL() string {
+	return "https://test.com/auth"
+}
+
+// 認証認可用ダミートークン取得
+func (m *MockAuthService) ExchangeCodeForToken(code string) (*model.AuthToken, error) {
+	return &model.AuthToken{
+		AccessToken:  "test-token",
+		TokenType:    "Bearer",
+		RefreshToken: "test-refresh-token",
+		ExpiresAt:    time.Now().Add(time.Hour),
+	}, nil
+}
+
+// テスト用ダミーリフレッシュトークン更新
+func (m *MockAuthService) RefreshToken(refreshToken string) (*model.AuthToken, error) {
+	return &model.AuthToken{
+		AccessToken:  "refreshed-token",
+		TokenType:    "Bearer",
+		RefreshToken: "new-refresh-token",
+		ExpiresAt:    time.Now().Add(time.Hour),
+	}, nil
+}
+
+// テスト用のダミーユーザーを取得
+func (m *MockAuthService) GetBacklogUser(accessToken string) (*model.User, error) {
+	return &model.User{
+		ID:          "test-user",
+		Name:        "Test User",
+		RoleType:    1,
+		Lang:        "ja",
+		MailAddress: "test@example.com",
+	}, nil
+}
+
+// テスト用のAuthUseCaseを作成
+func createTestAuthUseCase() *AuthUseCase {
+	return NewAuthUseCase(
+		&MockAuthService{},
+		&MockAuthRepository{},
+	)
+}
+
+// データ検索メソッドをテストする
 func TestBacklogItemUseCase_SearchItems(t *testing.T) {
-	// テスト用のリポジトリとサービスを初期化
 	mockBacklogService := NewMockBacklogItemService()
 	favoriteRepo := memory.NewFavoriteRepository()
-	mockAuthUseCase := &MockAuthUseCase{}
+	mockAuthUseCase := createTestAuthUseCase()
 
 	// テスト対象のユースケースを初期化
-	usecase := usecase.NewBacklogItemUseCase(mockBacklogService, favoriteRepo, mockAuthUseCase)
+	backlogUseCase := NewBacklogItemUseCase(mockBacklogService, favoriteRepo, mockAuthUseCase)
 
 	// テスト実行
 	testCases := []struct {
@@ -134,7 +204,7 @@ func TestBacklogItemUseCase_SearchItems(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			results, err := usecase.SearchItems(tc.userID, tc.keyword)
+			results, err := backlogUseCase.SearchItems(tc.userID, tc.keyword)
 			if err != nil {
 				t.Fatalf("Failed to search items: %v", err)
 			}
@@ -150,35 +220,35 @@ func TestBacklogItemUseCase_AddFavorite(t *testing.T) {
 	// テスト用のリポジトリとサービスを初期化
 	mockBacklogService := NewMockBacklogItemService()
 	favoriteRepo := memory.NewFavoriteRepository()
-	mockAuthUseCase := &MockAuthUseCase{}
+	authUseCase := createTestAuthUseCase()
 
 	// テスト対象のユースケースを初期化
-	usecase := usecase.NewBacklogItemUseCase(mockBacklogService, favoriteRepo, mockAuthUseCase)
+	backlogUseCase := NewBacklogItemUseCase(mockBacklogService, favoriteRepo, authUseCase)
 
 	// テスト実行
 	userID := "user1"
 	itemID := "1"
 
 	// お気に入り追加
-	err := usecase.AddFavorite(userID, itemID)
+	err := backlogUseCase.AddFavorite(userID, itemID)
 	if err != nil {
 		t.Fatalf("Failed to add favorite: %v", err)
 	}
 
 	// 同じアイテムを再度追加すると重複エラーが発生するはず
-	err = usecase.AddFavorite(userID, itemID)
+	err = backlogUseCase.AddFavorite(userID, itemID)
 	if err == nil {
 		t.Error("Expected duplicate error, but got nil")
 	}
 
 	// お気に入り削除
-	err = usecase.RemoveFavorite(userID, itemID)
+	err = backlogUseCase.RemoveFavorite(userID, itemID)
 	if err != nil {
 		t.Fatalf("Failed to remove favorite: %v", err)
 	}
 
 	// 再度お気に入り追加ができることを確認
-	err = usecase.AddFavorite(userID, itemID)
+	err = backlogUseCase.AddFavorite(userID, itemID)
 	if err != nil {
 		t.Fatalf("Failed to add favorite after removing: %v", err)
 	}

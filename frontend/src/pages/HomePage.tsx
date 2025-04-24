@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import './HomePage.css';
 
@@ -46,6 +46,9 @@ const HomePage: React.FC = () => {
   // 開発用デバッグ情報表示
   const [showDebug, setShowDebug] = useState<boolean>(false);
 
+  // API URLの設定
+  const apiUrl = process.env.REACT_APP_API_URL || '';
+
   // 初回ロード時にお気に入りデータを先に取得し、その後に全データを取得
   useEffect(() => {
     if (user) {
@@ -55,7 +58,6 @@ const HomePage: React.FC = () => {
           await fetchFavorites();
           await fetchItems();
         } catch (err) {
-          console.error('初期化中にエラーが発生しました:', err);
         } finally {
           setLoading(false);
         }
@@ -82,7 +84,21 @@ const HomePage: React.FC = () => {
     if (!user) return;
     
     try {
-      const response = await fetch(`/api/items?userId=${user.id}&keyword=${keyword}`);
+      const response = await fetch(`${apiUrl}/api/items?userId=${user.id}&keyword=${keyword}`);
+      
+      // ステータスコードをチェック
+      if (!response.ok) {
+        console.error(`API error: ${response.status}`);
+        throw new Error(`API responded with status: ${response.status}`);
+      }
+      
+      // Content-Typeをチェック
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error(`API returned non-JSON response: ${contentType}`);
+        throw new Error('Invalid JSON response');
+      }
+      
       const data = await response.json();
       
       if (!response.ok) {
@@ -94,6 +110,7 @@ const HomePage: React.FC = () => {
       
       setItems(updatedItems);
     } catch (err) {
+      console.error('Failed to fetch items:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch items');
     }
   };
@@ -103,19 +120,39 @@ const HomePage: React.FC = () => {
     if (!user) return;
     
     try {
-      // お気に入りデータの取得
-      const response = await fetch(`/api/favorites/${user.id}`);
+      const response = await fetch(`${apiUrl}/api/favorites/${user.id}`);
       
+      // ステータスコードをチェック
       if (!response.ok) {
-        throw new Error('Failed to fetch favorites');
+        console.error(`API error: ${response.status}`);
+        throw new Error(`API responded with status: ${response.status}`);
       }
       
-      const data = await response.json();
-      console.log('サーバーから取得したお気に入りデータ:', data);
+      // Content-Typeをチェック
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error(`API returned non-JSON response: ${contentType}`);
+        throw new Error('Invalid JSON response');
+      }
+      
+      // レスポンスのステータスコードとデータを確認
+      const responseText = await response.text();
+      
+      // JSON解析を試みる
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('JSONパースエラー:', e);
+        throw new Error('Invalid JSON response');
+      }
+      
+      if (!response.ok) {
+        throw new Error(`お気に入りデータが取得できませんでした: ${response.status}`);
+      }
       
       // 空の配列の場合は早期リターン
       if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
-        console.log('お気に入りデータが空です');
         setFavorites([]);
         return;
       }
@@ -126,7 +163,6 @@ const HomePage: React.FC = () => {
                         item.id && 
                         item.projectName && 
                         item.type && 
-                        item.contentSummary && 
                         item.createdUser && 
                         item.createdUser.name;
         
@@ -137,13 +173,12 @@ const HomePage: React.FC = () => {
         return isValid;
       });
       
-      console.log('検証済みお気に入りアイテム数:', validItems.length);
       
-      // お気に入りフラグを追加
       const favoritesWithFlag = validItems.map((item: BacklogItem) => ({
         ...item,
-        isFavorite: true
+        isFavorite: true  
       }));
+      
       
       // サーバーから取得したお気に入りデータをセット
       setFavorites(favoritesWithFlag);
@@ -177,7 +212,7 @@ const HomePage: React.FC = () => {
       setItems(tempUpdatedItems);
       
       // APIコールを実行し、完了するまで待機
-      const response = await fetch(`/api/favorites/${user.id}/${itemId}`, { method });
+      const response = await fetch(`${apiUrl}/api/favorites/${user.id}/${itemId}`, { method });
       
       // APIコールが成功した場合のみ状態を更新
       if (response.ok) {
@@ -219,9 +254,10 @@ const HomePage: React.FC = () => {
     }
   };
 
-  // お気に入りアイテム - 確実にisFavoriteがtrueのアイテムのみを表示
-  // nullチェックを追加して安全に処理
-  const favoriteItems = favorites ? favorites.filter(item => item && item.isFavorite === true) : [];
+  // お気に入りアイテム - useMemoを使用して最適化
+  const favoriteItems = useMemo(() => {
+    return favorites ? favorites.filter(item => item && item.isFavorite === true) : [];
+  }, [favorites]);
 
   // AI分析を実行
   const analyzeWithAI = async (item: BacklogItem) => {
@@ -238,7 +274,7 @@ const HomePage: React.FC = () => {
       setShowAiModal(true);
       
       // 実際のAPIコール - OpenAIを使用
-      const response = await fetch('/api/ai/analyze', {
+      const response = await fetch(`${apiUrl}/api/ai/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -417,7 +453,7 @@ const HomePage: React.FC = () => {
                     ))}
                     {items.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="no-data">表示する項目がありません</td>
+                        <td colSpan={8} className="no-data">検索キーと一致する項目がありません</td>
                       </tr>
                     )}
                   </tbody>

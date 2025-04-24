@@ -1,5 +1,8 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 
+// API URLの環境変数（デフォルトはproxyの設定を使用）
+const API_URL = process.env.REACT_APP_API_URL || '';
+
 // 認証情報の型定義
 interface User {
   id: string;
@@ -76,7 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError(null);
 
     try {
-      const response = await fetch(`http://localhost:8081/api/auth/callback?code=${code}`);
+      const response = await fetch(`${API_URL}/api/auth/callback?code=${code}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -115,7 +118,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // サーバーサイドのログアウト処理（オプション）
     if (user) {
-      fetch(`http://localhost:8081/api/auth/logout/${user.id}`, { method: 'GET' }).catch(console.error);
+      fetch(`${API_URL}/api/auth/logout/${user.id}`, { method: 'GET' }).catch(console.error);
     }
   };
 

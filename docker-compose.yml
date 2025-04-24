@@ -14,8 +14,13 @@ services:
       - BACKLOG_CLIENT_SECRET=${BACKLOG_CLIENT_SECRET}
       - BACKLOG_AUTH_URL=${BACKLOG_AUTH_URL}
       - BACKLOG_TOKEN_URL=${BACKLOG_TOKEN_URL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI}
       - PORT=8081
+      - USE_DYNAMODB=true
+      - DYNAMODB_REGION=ap-northeast-1
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
     restart: unless-stopped
     volumes:
       - ./backend/.env:/app/.env

@@ -71,6 +71,7 @@ func (u *BacklogItemUseCase) SearchItems(userID, keyword string) ([]*BacklogItem
 
 	// 出力データを作成
 	outputs := make([]*BacklogItemOutput, len(items))
+
 	for i, item := range items {
 		output := &BacklogItemOutput{
 			ID:             item.ID,
@@ -91,24 +92,20 @@ func (u *BacklogItemUseCase) SearchItems(userID, keyword string) ([]*BacklogItem
 
 // GetFavorites はユーザーのお気に入り情報を取得
 func (u *BacklogItemUseCase) GetFavorites(userID string) ([]*BacklogItemOutput, error) {
-	// ユーザーのアクセストークンを取得
 	_, err := u.authUseCase.GetValidToken(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// ユーザーのお気に入りIDリストを取得
 	favorites, err := u.favoriteRepository.FindByUserID(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// お気に入りが0件の場合は空配列を返す
 	if len(favorites) == 0 {
 		return []*BacklogItemOutput{}, nil
 	}
 
-	// お気に入りアイテムのIDを収集
 	favoriteIDs := make(map[string]bool)
 	for _, fav := range favorites {
 		favoriteIDs[fav.ItemID] = true

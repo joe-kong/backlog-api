@@ -68,6 +68,8 @@ func (c *BacklogClient) GetActivities(token string, count int) ([]*model.Backlog
 		return nil, err
 	}
 
+	//log.Println("GetActivities body:", string(body))
+
 	// JSONデコード
 	var activities []struct {
 		ID      int `json:"id"`
@@ -131,19 +133,19 @@ func (c *BacklogClient) SearchActivities(token, keyword string, count int) ([]*m
 		return nil, err
 	}
 
-	// キーワードが空の場合は全て返す
 	if keyword == "" {
 		return activities, nil
 	}
 
-	// キーワードでフィルタリング
 	var filtered []*model.BacklogItem
+	// キーワードでフィルタリング
 	for _, activity := range activities {
 		if strings.Contains(activity.ID, keyword) ||
 			strings.Contains(activity.ProjectName, keyword) ||
 			strings.Contains(activity.Type, keyword) ||
 			strings.Contains(activity.ContentSummary, keyword) ||
 			strings.Contains(activity.CreatedUser.Name, keyword) {
+
 			filtered = append(filtered, activity)
 		}
 	}

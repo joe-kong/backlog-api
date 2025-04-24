@@ -31,8 +31,6 @@ npm start
 
 4. http://localhost:3000 でアプリケーションにアクセス
 
-⭐️AWSにもリリースしています、backlog.51incloud.comにアクセスして動作確認可能になりました。
-
 ### 環境変数
 
 アプリケーションは設定のために以下の環境変数を使用します：
@@ -111,6 +109,11 @@ REACT_APP_API_URL=https://api.example.com  # 本番環境
 将来的に業務追加により、クリーンアーキテクチャをしっかりする場合、空のディレクトリを活用して、
 適切に分離された構造に移行する。
 
+### インフラ
+- Docker
+- Docker Compose
+- AWS DynamoDB（オプション）
+
 ### フロントエンド
 - React
 - TypeScript
@@ -153,53 +156,3 @@ REACT_APP_API_URL=https://api.example.com  # 本番環境
 　✳インメモ保存モードの場合、BEサーバーを再起動するとお気に入り登録項目が失われます。DynamoDBモードを有効にすることで永続化できます。
 - OAuth 2.0によるBacklog認証
 - OpenAI APIを使用したアイテムのAI分析機能 
-
-
-## インフラ構成
-
-以下のAWSサービスを使用してクラウドにリリースしています：
-
-### フロントエンド（React SPA）
-
-- **ホスティング**: Amazon S3 + CloudFront
-- **ドメイン**: backlog.51incloud.com
-
-### バックエンド（Go API）
-
-- **ホスティング**: ECS Fargate
-- **ロードバランサー**: Application Load Balancer (HTTPS:443)
-- **ドメイン**: backlog-app-api.51incloud.com
-- **コンテナ化**: ECRにDockerイメージを保存
-
-### ネットワーク
-
-- **VPC**: 10.0.0.0/16
-- **サブネット**:
-  - パブリック: 2つのAZ (ap-northeast-1a, ap-northeast-1c)
-  - プライベート: 2つのAZ (ap-northeast-1a, ap-northeast-1c)
-- **インターネット接続**:
-  - パブリックサブネット: Internet Gateway
-  - プライベートサブネット: NAT Gateway
-
-### データストア
-
-- **お気に入り情報**: DynamoDB
-
-### セキュリティ
-
-- **CloudFront**: TLS接続 (HTTPS)
-- **ALB**: TLS接続 (HTTPS), セキュリティグループによるアクセス制限
-- **ECS**: プライベートサブネットでの実行、ALBからのみアクセス可能
-- **IAM**: 最小権限の原則に基づくロール設定
-
-### CI/CD
-
-- デプロイスクリプト:
-  - `deploy-frontend.sh`: フロントエンドのビルドとS3へのデプロイ
-  - `deploy-backend.sh`: バックエンドのDockerビルドとECRへのプッシュ、ECS更新
-
-## リソースサイズと最適化
-
-- **ECS Fargate**: 最小構成で運用
-- **S3+CloudFront**: 静的コンテンツのキャッシュによる高速化
-- **DynamoDB**: オンデマンドキャパシティモードで自動スケーリング 
