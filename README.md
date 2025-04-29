@@ -31,7 +31,7 @@ npm start
 
 4. http://localhost:3000 でアプリケーションにアクセス
 
-⭐️AWSにもリリースしています、backlog.51incloud.comにアクセスして動作確認可能になりました。
+
 
 ### 環境変数
 
